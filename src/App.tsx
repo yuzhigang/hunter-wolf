@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useGameStore } from './store/gameStore';
 import RoleSelection from './components/RoleSelection';
-import Board from './components/Board';
 import GameInfo from './components/GameInfo';
 
 function App() {
@@ -30,9 +29,9 @@ function App() {
           e.preventDefault();
           useGameStore.getState().moveCursor('right');
           break;
-        case ' ':
+        case 'Escape':
           e.preventDefault();
-          useGameStore.getState().confirmMove();
+          useGameStore.getState().cancelPendingMove();
           break;
       }
     };
@@ -51,14 +50,35 @@ function App() {
     }
   }, [currentTurn, playerRole, triggerAIMove]);
 
+  useEffect(() => {
+    // 当角色选择后，检查是否需要立即触发AI移动
+    if (playerRole) {
+      const state = useGameStore.getState();
+      if (playerRole === 'wolf' && state.currentTurn === 'hunter') {
+        triggerAIMove();
+      }
+    }
+  }, [playerRole, triggerAIMove]);
+
   if (!playerRole) {
-    return <RoleSelection onSelectRole={useGameStore.getState().setPlayerRole} />;
+    return <RoleSelection onSelectRole={(role) => {
+      useGameStore.getState().resetGame();
+      useGameStore.getState().setPlayerRole(role);
+    }} />;
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 py-8 px-4">
-      <GameInfo />
-      <Board />
+    <div className="h-screen w-full bg-[var(--stone-dark)] flex flex-col items-center overflow-hidden relative">
+      {/* Global Background Texture */}
+      <div className="fixed inset-0 opacity-20 pointer-events-none bg-[url('/textures/dark-matter.png')] z-0" />
+      
+      <div className="flex-1 w-full max-w-6xl relative z-10 flex flex-col p-2 md:p-4">
+        {/* The Game Console - Adaptive Height */}
+        <GameInfo />
+      </div>
+
+      {/* Subtle Table Shadow */}
+      <div className="fixed bottom-0 left-0 w-full h-32 bg-gradient-to-t from-black/80 to-transparent pointer-events-none z-0" />
     </div>
   );
 }

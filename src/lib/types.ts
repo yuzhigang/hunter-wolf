@@ -5,6 +5,7 @@ export const WOLF = 2;
 export type CellValue = typeof EMPTY | typeof HUNTER | typeof WOLF;
 export type Board = CellValue[];
 export type Position = number;
+export type Difficulty = 'easy' | 'medium' | 'hard';
 
 export interface GameState {
   board: Board;

@@ -1,88 +1,116 @@
 import type { Board } from './types';
-import { WOLF, HUNTER } from './types';
+import { WOLF, HUNTER, EMPTY } from './types';
 import { isAdjacent } from './moves';
+import { canSnipe } from './snipe';
 
-export function evaluateBoard(board: Board): number {
+// 专门针对狼的评估函数
+export function evaluateWolfPerspective(board: Board): number {
+  let score = 0;
   const wolves: number[] = [];
   const hunters: number[] = [];
 
   for (let i = 0; i < 25; i++) {
-    if (board[i] === WOLF) wolves.push(i);
-    if (board[i] === HUNTER) hunters.push(i);
-  }
-
-  const wolfCountScore = wolves.length * 1000;
-
-  let wolfCompactness = 0;
-  for (let i = 0; i < wolves.length; i++) {
-    for (let j = i + 1; j < wolves.length; j++) {
-      const dist = manhattanDistance(wolves[i], wolves[j]);
-      wolfCompactness -= dist;
+    if (board[i] === WOLF) {
+      wolves.push(i);
+      score += 1000; // 狼数量基础分
+    } else if (board[i] === HUNTER) {
+      hunters.push(i);
     }
   }
-  wolfCompactness *= 10;
 
+  // 1. 避免被射杀 (极其重要)
+  for (const hunter of hunters) {
+    for (const wolf of wolves) {
+      if (canSnipe(board, hunter, wolf)) {
+        score -= 800; // 发现危险立即扣分
+      }
+    }
+  }
+
+  // 2. 狼群聚集度 (简化版：计算到中心点的距离之和)
+  let distToCenter = 0;
+  for (const wolf of wolves) {
+    const r = Math.floor(wolf / 5);
+    const c = wolf % 5;
+    distToCenter += Math.abs(r - 2) + Math.abs(c - 2);
+  }
+  score -= distToCenter * 5;
+
+  // 3. 限制猎人移动
   let hunterMobility = 0;
   for (const hunter of hunters) {
-    const validMoves = getValidMoves(board, hunter);
-    const snipes = getPossibleSnipes(board, hunter);
-    hunterMobility += validMoves.length + snipes.length * 2;
+    // 简单计算猎人周围的空位数
+    const r = Math.floor(hunter / 5);
+    const c = hunter % 5;
+    const adj = [
+      { r: r - 1, c }, { r: r + 1, c }, { r, c: c - 1 }, { r, c: c + 1 }
+    ];
+    for (const a of adj) {
+      if (a.r >= 0 && a.r < 5 && a.c >= 0 && a.c < 5 && board[a.r * 5 + a.c] === EMPTY) {
+        hunterMobility++;
+      }
+    }
   }
-  hunterMobility *= 5;
+  score -= hunterMobility * 20;
 
-  const wolfAvgRow = wolves.reduce((sum, pos) => sum + Math.floor(pos / 5), 0) / wolves.length;
-  const advancementScore = wolfAvgRow * 3;
-
-  let trapPotential = 0;
+  // 4. 围堵猎人
   for (const wolf of wolves) {
     for (const hunter of hunters) {
       if (isAdjacent(wolf, hunter)) {
-        trapPotential += 15;
+        score += 30;
       }
     }
   }
 
-  return wolfCountScore + wolfCompactness - hunterMobility + advancementScore + trapPotential;
+  return score;
 }
 
-function manhattanDistance(pos1: number, pos2: number): number {
-  const row1 = Math.floor(pos1 / 5);
-  const col1 = pos1 % 5;
-  const row2 = Math.floor(pos2 / 5);
-  const col2 = pos2 % 5;
-  return Math.abs(row1 - row2) + Math.abs(col1 - col2);
-}
+// 专门针对猎人的评估函数
+export function evaluateHunterPerspective(board: Board): number {
+  let score = 0;
+  const wolves: number[] = [];
+  const hunters: number[] = [];
 
-function getValidMoves(board: Board, pos: number): number[] {
-  const adjacent: number[] = [];
-  const row = Math.floor(pos / 5);
-  const col = pos % 5;
+  for (let i = 0; i < 25; i++) {
+    if (board[i] === WOLF) {
+      wolves.push(i);
+    } else if (board[i] === HUNTER) {
+      hunters.push(i);
+    }
+  }
 
-  if (row > 0 && board[pos - 5] === 0) adjacent.push(pos - 5);
-  if (row < 4 && board[pos + 5] === 0) adjacent.push(pos + 5);
-  if (col > 0 && board[pos - 1] === 0) adjacent.push(pos - 1);
-  if (col < 4 && board[pos + 1] === 0) adjacent.push(pos + 1);
+  // 1. 狼越少越好
+  score += (15 - wolves.length) * 1000;
 
-  return adjacent;
-}
-
-function getPossibleSnipes(board: Board, hunterPos: number): number[] {
-  const snipeTargets: number[] = [];
-  const directions = [2, -2, 10, -10];
-
-  for (const diff of directions) {
-    const targetPos = hunterPos + diff;
-    if (targetPos >= 0 && targetPos < 25) {
-      const midPos = (hunterPos + targetPos) / 2;
-      if (
-        board[hunterPos] === HUNTER &&
-        board[targetPos] === WOLF &&
-        board[midPos] === 0
-      ) {
-        snipeTargets.push(targetPos);
+  // 2. 射杀机会
+  for (const hunter of hunters) {
+    for (const wolf of wolves) {
+      if (canSnipe(board, hunter, wolf)) {
+        score += 500;
       }
     }
   }
 
-  return snipeTargets;
+  // 3. 保护自己不被围堵
+  for (const hunter of hunters) {
+    let surroundedCount = 0;
+    const r = Math.floor(hunter / 5);
+    const c = hunter % 5;
+    const adj = [
+      { r: r - 1, c }, { r: r + 1, c }, { r, c: c - 1 }, { r, c: c + 1 }
+    ];
+    for (const a of adj) {
+      if (a.r >= 0 && a.r < 5 && a.c >= 0 && a.c < 5 && board[a.r * 5 + a.c] === WOLF) {
+        surroundedCount++;
+      }
+    }
+    if (surroundedCount >= 3) score -= 600;
+    else if (surroundedCount >= 2) score -= 200;
+  }
+
+  return score;
+}
+
+export function evaluateBoard(board: Board, perspective: 'wolf' | 'hunter' = 'wolf'): number {
+  return perspective === 'wolf' ? evaluateWolfPerspective(board) : evaluateHunterPerspective(board);
 }

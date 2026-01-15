@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import type { Board, Position } from '../lib/types';
+import type { Board, Position, Difficulty } from '../lib/types';
 import { createInitialBoard } from '../lib/board';
 import { movePiece, getValidMoves } from '../lib/moves';
-import { canSnipe, snipe } from '../lib/snipe';
+import { snipe, getPossibleSnipes } from '../lib/snipe';
 import { checkGameOver } from '../lib/gameState';
 import { getAIMove } from './aiStore';
 import { vibrateOnCapture, vibrateOnMove, vibrateOnWin, vibrateOnLoss } from '../hooks/useVibration';
@@ -18,22 +18,22 @@ interface GameStore {
   isThinking: boolean;
   playerRole: 'hunter' | 'wolf' | null;
   cursorPosition: Position | null;
+  difficulty: Difficulty;
 
   resetGame: () => void;
   setPlayerRole: (role: 'hunter' | 'wolf') => void;
+  setDifficulty: (difficulty: Difficulty) => void;
   selectPiece: (pos: Position) => void;
   executeMovePiece: (to: Position) => void;
-  moveHunter: (to: Position) => void;
-  hunterSnipe: (to: Position) => void;
   makeAIMove: (aiMove: { from: Position; to: Position; isSnipe?: boolean }) => void;
   triggerAIMove: () => Promise<void>;
   moveCursor: (direction: 'up' | 'down' | 'left' | 'right') => void;
-  confirmMove: () => void;
+  cancelPendingMove: () => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
   board: createInitialBoard(),
-  currentTurn: 'hunter',
+  currentTurn: 'hunter',  // 猎人先手
   selectedPiece: null,
   gameOver: false,
   winner: null,
@@ -42,8 +42,9 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isThinking: false,
   playerRole: null,
   cursorPosition: 12,
+  difficulty: 'medium',
 
-  resetGame: () => set({
+  resetGame: () => set(() => ({
     board: createInitialBoard(),
     currentTurn: 'hunter',
     selectedPiece: null,
@@ -53,9 +54,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     snipeTargets: [],
     isThinking: false,
     cursorPosition: 12,
-  }),
+  })),
 
   setPlayerRole: (role) => set({ playerRole: role }),
+
+  setDifficulty: (difficulty) => set({ difficulty }),
+
+  cancelPendingMove: () => set(() => {
+    return { selectedPiece: null, validMoves: [], snipeTargets: [] };
+  }),
 
   selectPiece: (pos) => set((state) => {
     if (state.gameOver) return state;
@@ -71,15 +78,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     if (state.currentTurn === 'hunter' && cell === 1 && state.playerRole === 'hunter') {
       const moves = getValidMoves(state.board, pos);
-      const snipes: Position[] = [];
-
-      const directions = [2, -2, 10, -10];
-      for (const diff of directions) {
-        const targetPos = pos + diff;
-        if (targetPos >= 0 && targetPos < 25 && canSnipe(state.board, pos, targetPos)) {
-          snipes.push(targetPos);
-        }
-      }
+      const snipes = getPossibleSnipes(state.board, pos);
 
       return { selectedPiece: pos, validMoves: moves, snipeTargets: snipes };
     }
@@ -92,99 +91,29 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return state;
   }),
 
-  moveHunter: (to) => set((state) => {
-    if (state.selectedPiece === null || state.currentTurn !== 'hunter') return state;
-
-    if (state.snipeTargets.includes(to)) {
-      const newBoard = snipe(state.board, state.selectedPiece, to);
-      const gameResult = checkGameOver(newBoard);
-
-      vibrateOnCapture();
-      if (gameResult.gameOver) {
-        if (gameResult.winner === 'hunter') vibrateOnWin();
-        else vibrateOnLoss();
-      }
-
-      return {
-        board: newBoard,
-        selectedPiece: null,
-        validMoves: [],
-        snipeTargets: [],
-        currentTurn: gameResult.gameOver ? state.currentTurn : 'wolf',
-        gameOver: gameResult.gameOver,
-        winner: gameResult.winner,
-      };
-    }
-
-    if (state.validMoves.includes(to)) {
-      const newBoard = movePiece(state.board, state.selectedPiece, to);
-      const gameResult = checkGameOver(newBoard);
-
-      vibrateOnMove();
-
-      return {
-        board: newBoard,
-        selectedPiece: null,
-        validMoves: [],
-        snipeTargets: [],
-        currentTurn: gameResult.gameOver ? state.currentTurn : 'wolf',
-        gameOver: gameResult.gameOver,
-        winner: gameResult.winner,
-      };
-    }
-
-    return state;
-  }),
-
-  hunterSnipe: (to) => set((state) => {
-    if (state.selectedPiece === null || state.currentTurn !== 'hunter') return state;
-
-    if (state.snipeTargets.includes(to)) {
-      const newBoard = snipe(state.board, state.selectedPiece, to);
-      const gameResult = checkGameOver(newBoard);
-
-      vibrateOnCapture();
-      if (gameResult.gameOver) {
-        if (gameResult.winner === 'hunter') vibrateOnWin();
-        else vibrateOnLoss();
-      }
-
-      return {
-        board: newBoard,
-        selectedPiece: null,
-        validMoves: [],
-        snipeTargets: [],
-        currentTurn: gameResult.gameOver ? state.currentTurn : 'wolf',
-        gameOver: gameResult.gameOver,
-        winner: gameResult.winner,
-      };
-    }
-
-    return state;
-  }),
-
   makeAIMove: (aiMove) => set((state) => {
-    if (state.currentTurn !== 'wolf' || state.gameOver) return state;
+    if (state.gameOver) return state;
 
     let newBoard: Board;
 
     if (aiMove.isSnipe) {
       newBoard = snipe(state.board, aiMove.from, aiMove.to);
+      vibrateOnCapture();
     } else {
       newBoard = movePiece(state.board, aiMove.from, aiMove.to);
+      vibrateOnMove();
     }
 
     const gameResult = checkGameOver(newBoard);
 
-    vibrateOnMove();
     if (gameResult.gameOver) {
-      if (gameResult.winner === 'wolf') vibrateOnWin();
+      if (gameResult.winner === state.playerRole) vibrateOnWin();
       else vibrateOnLoss();
     }
 
     return {
       board: newBoard,
-      currentTurn: gameResult.gameOver ? state.currentTurn : 'hunter',
+      currentTurn: gameResult.gameOver ? state.currentTurn : (state.currentTurn === 'hunter' ? 'wolf' : 'hunter'),
       gameOver: gameResult.gameOver,
       winner: gameResult.winner,
     };
@@ -192,14 +121,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   triggerAIMove: async () => {
     const state = get();
-    if (state.currentTurn !== 'wolf' || state.gameOver) return;
+    if (state.gameOver) return;
 
+    // AI扮演的角色与当前回合相同
+    const aiRole = state.currentTurn;
     set({ isThinking: true });
 
-    const wolvesCount = state.board.filter(cell => cell === 2).length;
-    const depth = wolvesCount > 12 ? 6 : wolvesCount > 6 ? 5 : 4;
+    // 根据AI角色和难度调整搜索深度
+    let depth: number;
+    const { difficulty } = state;
 
-    const aiMove = await getAIMove(state.board, depth, 800);
+    if (aiRole === 'wolf') {
+      const wolvesCount = state.board.filter(cell => cell === 2).length;
+      if (difficulty === 'easy') {
+        depth = 3;
+      } else if (difficulty === 'medium') {
+        depth = wolvesCount > 10 ? 4 : 5;
+      } else {
+        depth = 6;
+      }
+    } else {
+      if (difficulty === 'easy') {
+        depth = 4;
+      } else if (difficulty === 'medium') {
+        depth = 6;
+      } else {
+        depth = 8;
+      }
+    }
+
+    const aiMove = await getAIMove(state.board, depth, 1500, aiRole);
 
     set({ isThinking: false });
 
@@ -227,6 +178,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         }
 
         return {
+          ...state,
           board: newBoard,
           selectedPiece: null,
           validMoves: [],
@@ -244,6 +196,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         vibrateOnMove();
 
         return {
+          ...state,
           board: newBoard,
           selectedPiece: null,
           validMoves: [],
@@ -263,6 +216,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
         vibrateOnMove();
 
         return {
+          ...state,
           board: newBoard,
           selectedPiece: null,
           validMoves: [],
@@ -302,44 +256,4 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
     return { cursorPosition: newRow * 5 + newCol };
   }),
-
-  confirmMove: () => {
-    const state = get();
-    if (state.cursorPosition === null) return;
-
-    const cell = state.board[state.cursorPosition];
-
-    if (state.gameOver) return;
-
-    if (state.selectedPiece === null) {
-      if (cell === 1 && state.currentTurn === 'hunter' && state.playerRole === 'hunter') {
-        const moves = getValidMoves(state.board, state.cursorPosition);
-        const snipes: number[] = [];
-
-        const directions = [2, -2, 10, -10];
-        for (const diff of directions) {
-          const targetPos = state.cursorPosition + diff;
-          if (targetPos >= 0 && targetPos < 25 && canSnipe(state.board, state.cursorPosition, targetPos)) {
-            snipes.push(targetPos);
-          }
-        }
-
-        set({ selectedPiece: state.cursorPosition, validMoves: moves, snipeTargets: snipes });
-        return;
-      }
-
-      if (cell === 2 && state.currentTurn === 'wolf' && state.playerRole === 'wolf') {
-        const moves = getValidMoves(state.board, state.cursorPosition);
-        set({ selectedPiece: state.cursorPosition, validMoves: moves, snipeTargets: [] });
-        return;
-      }
-    } else {
-      if (state.validMoves.includes(state.cursorPosition) || state.snipeTargets.includes(state.cursorPosition)) {
-        get().executeMovePiece(state.cursorPosition);
-        return;
-      }
-    }
-
-    set({ selectedPiece: null, validMoves: [], snipeTargets: [] });
-  },
 }));

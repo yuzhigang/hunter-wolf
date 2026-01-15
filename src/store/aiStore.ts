@@ -12,7 +12,8 @@ export function initializeAIWorker() {
 export async function getAIMove(
   board: Board,
   depth: number = 5,
-  timeout: number = 800
+  timeout: number = 800,
+  aiRole: 'hunter' | 'wolf' = 'wolf'
 ): Promise<{ from: Position; to: Position; isSnipe?: boolean } | null> {
   if (!aiWorker) initializeAIWorker();
 
@@ -41,6 +42,7 @@ export async function getAIMove(
       board,
       maxDepth: depth,
       timeLimit: timeout,
+      aiRole,
     });
   });
 }
