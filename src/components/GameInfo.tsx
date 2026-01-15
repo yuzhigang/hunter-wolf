@@ -27,42 +27,45 @@ export default function GameInfo() {
   };
 
   return (
-    <div className="flex flex-col h-full w-full mx-auto px-0.5">
+    <div className="flex flex-col h-full w-full mx-auto px-1">
       
-      {/* 1. TOP SECTION: SETTINGS (Very compact) */}
-      <div className="flex flex-col space-y-0.5 mb-1">
+      {/* 1. TOP SECTION: SETTINGS & DASHBOARD */}
+      <div className="flex flex-col space-y-2 mb-4 mt-2">
         
-        {/* Row 1: Quick Settings (Ultra compact) */}
-        <div className="flex items-center justify-between px-2 py-0.5 bg-black/50 backdrop-blur-sm border-b border-white/5">
-          {/* Side Select */}
-          <div className="flex items-center space-x-1.5">
-            <span className="text-[7px] font-black text-yellow-600/60 uppercase tracking-widest text-nowrap">阵营 Side</span>
-            <div className="flex bg-[#0a0a0a] p-0.5 rounded border border-white/5">
+        {/* Row 1: Quick Settings - Two Rows for Side and Difficulty */}
+        <div className="flex flex-col space-y-2.5 px-4 py-3 bg-black/60 backdrop-blur-md border border-white/5 rounded-md shadow-2xl">
+          {/* Side Select Row */}
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-black text-yellow-600/90 uppercase tracking-[0.15em] text-nowrap">阵营 SIDE</span>
+            <div className="flex bg-[#0a0a0a] p-1.5 rounded border border-white/10 shadow-inner">
               <button 
                 onClick={() => handleRoleChange('hunter')}
-                className={`px-2 py-0.5 text-[7px] font-bold uppercase transition-all rounded-sm ${playerRole === 'hunter' ? 'bg-blue-600 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`px-4 py-1.5 text-[12px] font-bold uppercase transition-all rounded-sm ${playerRole === 'hunter' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 🏹 猎客
               </button>
               <button 
                 onClick={() => handleRoleChange('wolf')}
-                className={`px-2 py-0.5 text-[7px] font-bold uppercase transition-all rounded-sm ${playerRole === 'wolf' ? 'bg-slate-700 text-white' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`px-4 py-1.5 text-[12px] font-bold uppercase transition-all rounded-sm ${playerRole === 'wolf' ? 'bg-slate-700 text-white shadow-lg shadow-slate-900/40' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 🐺 狼群
               </button>
             </div>
           </div>
 
-          {/* Difficulty Select */}
-          <div className="flex items-center space-x-1.5">
-            <span className="text-[7px] font-black text-yellow-600/60 uppercase tracking-widest text-nowrap">难度 Level</span>
-            <div className="flex bg-[#0a0a0a] p-0.5 rounded border border-white/5">
+          {/* Divider Line */}
+          <div className="h-[1px] w-full bg-white/10" />
+
+          {/* Difficulty Select Row */}
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-black text-yellow-600/90 uppercase tracking-[0.15em] text-nowrap">难度 LEVEL</span>
+            <div className="flex bg-[#0a0a0a] p-1.5 rounded border border-white/10 shadow-inner">
               {difficulties.map((d) => (
                 <button
                   key={d.value}
                   onClick={() => setDifficulty(d.value)}
-                  className={`px-2 py-0.5 text-[7px] font-bold uppercase transition-all rounded-sm ${
-                    difficulty === d.value ? 'bg-yellow-600 text-black' : 'text-slate-500 hover:text-slate-300'
+                  className={`px-4 py-1.5 text-[12px] font-bold uppercase transition-all rounded-sm ${
+                    difficulty === d.value ? 'bg-yellow-600 text-black shadow-lg shadow-yellow-900/40' : 'text-slate-500 hover:text-slate-300'
                   }`}
                 >
                   {d.label}
@@ -72,56 +75,61 @@ export default function GameInfo() {
           </div>
         </div>
 
-        {/* Row 2: Battle Dashboard (Ultra slim) */}
-        <div className="grid grid-cols-3 items-center bg-[#1a0f0a] border-y border-[#d4af37]/20 py-0.5 px-4 shadow-lg">
+        {/* Row 2: Battle Dashboard */}
+        <div className="grid grid-cols-3 items-center bg-[#1a0f0a] border border-[#d4af37]/30 py-2 px-6 shadow-2xl rounded-md relative overflow-hidden group">
+          {/* Background Highlight */}
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-900/5 via-transparent to-red-900/5 opacity-50" />
+          
           {/* Left: Hunter Stats */}
-          <div className={`flex flex-col items-center transition-all duration-500 ${currentTurn === 'hunter' ? 'scale-105' : 'opacity-20 grayscale'}`}>
-             <div className="flex items-center space-x-1">
-                <span className="text-sm">🏹</span>
-                <span className="text-xl font-medieval font-black text-blue-500">{3}</span>
+          <div className={`flex flex-col items-center transition-all duration-500 relative z-10 ${currentTurn === 'hunter' ? 'scale-110' : 'opacity-30 grayscale'}`}>
+             <div className="flex items-center space-x-2">
+                <span className="text-lg">🏹</span>
+                <span className="text-2xl md:text-3xl font-medieval font-black text-blue-500 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]">{3}</span>
              </div>
-             <span className="text-[5px] font-black text-blue-400/70 uppercase tracking-widest">Hunters</span>
+             <span className="text-[8px] font-black text-blue-400/90 uppercase tracking-[0.2em]">HUNTERS</span>
           </div>
 
           {/* Center: Status */}
-          <div className="flex flex-col items-center">
+          <div className="flex flex-col items-center relative z-10">
             <AnimatePresence mode="wait">
               <motion.div
                 key={statusInfo.text}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className={`text-sm md:text-base font-medieval font-black tracking-widest text-center ${statusInfo.color} uppercase`}
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -5 }}
+                className={`text-lg md:text-2xl font-medieval font-black tracking-[0.15em] text-center ${statusInfo.color} uppercase drop-shadow-md`}
               >
                 {statusInfo.text}
               </motion.div>
             </AnimatePresence>
+            <div className="w-12 h-0.5 bg-gradient-to-r from-transparent via-[#d4af37]/40 to-transparent mt-1" />
           </div>
 
           {/* Right: Wolf Stats */}
-          <div className={`flex flex-col items-center transition-all duration-500 ${currentTurn === 'wolf' ? 'scale-105' : 'opacity-20 grayscale'}`}>
-             <div className="flex items-center space-x-1">
-                <span className="text-xl font-medieval font-black text-red-600">{wolves}</span>
-                <span className="text-sm">🐺</span>
+          <div className={`flex flex-col items-center transition-all duration-500 relative z-10 ${currentTurn === 'wolf' ? 'scale-110' : 'opacity-30 grayscale'}`}>
+             <div className="flex items-center space-x-2">
+                <span className="text-2xl md:text-3xl font-medieval font-black text-red-600 drop-shadow-[0_0_8px_rgba(220,38,38,0.5)]">{wolves}</span>
+                <span className="text-lg">🐺</span>
              </div>
-             <span className="text-[5px] font-black text-red-500/70 uppercase tracking-widest">Wolves</span>
+             <span className="text-[8px] font-black text-red-500/90 uppercase tracking-[0.2em]">WOLVES</span>
           </div>
         </div>
       </div>
 
-      {/* 2. CENTER: MAXIMIZED BOARD (Fill space) */}
-      <div className="flex-1 flex items-center justify-center min-h-0 py-0.5 overflow-hidden">
+      {/* 2. CENTER: MAXIMIZED BOARD */}
+      <div className="flex-1 flex items-center justify-center min-h-0 py-1 overflow-hidden">
          <div className="xiangqi-table w-full max-w-[min(99vw,92vh)] aspect-square shadow-2xl relative">
            <Board />
          </div>
       </div>
 
       {/* 3. BOTTOM: CORE ACTION (Snug to board) */}
-      <div className="flex flex-col items-center mt-1 mb-1">
+      <div className="flex flex-col items-center mt-0.5 mb-2">
         <button 
           onClick={resetGame}
-          className="btn-medieval bg-[#4a1608] border-[#d4af37]/80 py-1 px-12 text-[9px] font-black shadow-lg hover:scale-105 active:scale-95 transition-all group relative overflow-hidden rounded-sm"
+          className="btn-medieval bg-[#4a1608] border-[#d4af37]/80 py-2.5 px-16 text-[14px] md:text-[16px] font-black shadow-lg hover:scale-105 active:scale-95 transition-all group relative overflow-hidden rounded-sm"
         >
-           <span className="relative z-10 flex items-center tracking-widest uppercase text-nowrap">
+           <span className="relative z-10 flex items-center tracking-[0.2em] uppercase text-nowrap">
              🔄 重整棋局 RESTART
            </span>
         </button>

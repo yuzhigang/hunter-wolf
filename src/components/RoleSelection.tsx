@@ -157,7 +157,7 @@ export default function RoleSelection({ onSelectRole }: RoleSelectionProps) {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.8 }}
       >
-        <p className="text-yellow-600 font-medieval tracking-widest text-sm uppercase flex items-center space-x-4">
+        <p className="text-yellow-600 mt-4 font-medieval tracking-widest text-sm uppercase flex items-center space-x-4">
           <span>⌨️ Arrow Keys to Select</span>
           <span className="h-1 w-1 bg-yellow-600 rounded-full" />
           <span>Space to Confirm</span>
